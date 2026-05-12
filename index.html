@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>TASSILI — Visualisation d'Itinéraires</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── MOBILE ONLY: Backdrop ── -->
+  <div id="mobile-backdrop"></div>
+
+  <!-- ── MOBILE ONLY: FAB Button ── -->
+  <button id="map-fab" title="Ouvrir le menu" style="display:none;">
+    ☰
+  </button>
+
+  <!-- ── DESKTOP ONLY: Sidebar toggle ── -->
+  <button id="sidebar-toggle" title="Afficher/Masquer la barre">
+    <span id="toggle-arrow">◀</span>
+    <span id="toggle-label">Menu</span>
+  </button>
+
+  <!-- Sidebar / Bottom Sheet -->
+  <div id="sidebar">
+    <h1 id="sidebar-header">TassiliRoutes</h1>
+
+    <!-- ── MOBILE ONLY: Quick Action Bar ── -->
+    <div id="mobile-quick-bar" style="display:none;">
+      <button class="mobile-quick-btn qb-accent" id="qb-calculate">
+        <span class="qb-icon">🗺️</span>
+        Calculer
+      </button>
+      <button class="mobile-quick-btn qb-green" id="qb-vrp">
+        <span class="qb-icon">🚚</span>
+        VRP
+      </button>
+      <button class="mobile-quick-btn" id="qb-tsp">
+        <span class="qb-icon">🔄</span>
+        TSP
+      </button>
+      <button class="mobile-quick-btn" id="qb-graph">
+        <span class="qb-icon">📈</span>
+        Graphe
+      </button>
+      <button class="mobile-quick-btn" id="qb-matrix">
+        <span class="qb-icon">📊</span>
+        Matrice
+      </button>
+      <button class="mobile-quick-btn" id="qb-save">
+        <span class="qb-icon">💾</span>
+        Sauver
+      </button>
+    </div>
+
+    <!-- Depot section -->
+    <div class="section">
+      <div class="section-title">📍 Depot central</div>
+      <div class="input-group">
+        <input type="text" id="depot-input" placeholder="Ex: Alger centre" autocomplete="off">
+        <button class="btn btn-accent" id="btn-set-depot">Fixer</button>
+        <div class="autocomplete-list" id="depot-autocomplete"></div>
+      </div>
+      <div id="depot-display">
+        <span class="depot-dot"></span>
+        <span class="depot-name" id="depot-name-text"></span>
+        <button class="btn-remove" id="btn-remove-depot" title="Supprimer le dépôt">&times;</button>
+      </div>
+    </div>
+
+    <!-- Addresses section -->
+    <div class="section">
+      <div class="section-title">🏠 Adresses de livraison</div>
+      <div class="input-group">
+        <input type="text" id="address-input" placeholder="Ex: Oran, Constantine..." autocomplete="off">
+        <button class="btn" id="btn-add-address">Ajouter</button>
+        <div class="autocomplete-list" id="address-autocomplete"></div>
+      </div>
+      <div id="address-list"></div>
+    </div>
+
+    <!-- Pickup Time section -->
+    <div class="section">
+      <div class="section-title">⏰ Heure de ramassage</div>
+      <div class="input-group">
+        <input type="text" id="pickup-time-input" placeholder="10:30" style="width:80px;">
+        <select id="pickup-time-node" style="flex:1;">
+          <option value="">Sélectionner un nœud...</option>
+        </select>
+        <button class="btn" id="btn-set-pickup-time">Fixer</button>
+      </div>
+      <div id="pickup-time-list" style="font-size:0.75rem;color:var(--text3);margin-top:6px;"></div>
+    </div>
+
+    <!-- VRP Parameters -->
+    <div class="section">
+      <div class="section-title">⚙️ Paramètres VRP</div>
+      <div class="vrp-params-grid">
+        <div class="vrp-param-item">
+          <label>Véhicules max</label>
+          <input type="number" id="vrp-vehicles" value="5" min="1" max="20">
+        </div>
+        <div class="vrp-param-item">
+          <label>Fenêtre début</label>
+          <input type="text" id="vrp-tw-start" placeholder="08:00" value="08:00">
+        </div>
+        <div class="vrp-param-item">
+          <label>Fenêtre fin</label>
+          <input type="text" id="vrp-tw-end" placeholder="18:00" value="18:00">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions (desktop only — mobile uses quick bar) -->
+    <div class="section" id="desktop-actions">
+      <div class="section-title">Actions</div>
+      <button class="btn btn-full btn-accent" id="btn-calculate">🗺️ Calculer tous les itinéraires</button>
+      <button class="btn btn-full btn-secondary" id="btn-tsp">🔄 Optimiser la tournée (TSP)</button>
+      <button class="btn btn-full btn-green" id="btn-vrp">🚚 Résoudre VRP + Fenêtres de temps</button>
+      <div class="btn-pair">
+        <button class="btn btn-secondary" id="btn-graph">📈 Graphe</button>
+        <button class="btn btn-secondary" id="btn-latex">📄 LaTeX</button>
+      </div>
+      <div class="btn-pair">
+        <button class="btn btn-secondary" id="btn-save">💾 Sauvegarder</button>
+        <button class="btn btn-secondary" id="btn-load">📂 Charger</button>
+      </div>
+      <input type="file" id="file-load" accept=".json" style="display:none;">
+    </div>
+
+    <!-- VRP Results -->
+    <div class="section" id="vrp-result-section" style="display:none;">
+      <div class="section-title">🚚 Résultats VRP</div>
+      <div id="vrp-result"></div>
+    </div>
+
+    <!-- Distance matrix -->
+    <div class="section" id="matrix-section" style="display:none;">
+      <div class="section-title">📊 Matrice des distances</div>
+      <button class="btn btn-full btn-matrix" id="btn-show-matrix">📊 Afficher la matrice complète</button>
+    </div>
+
+    <!-- TSP result -->
+    <div class="section">
+      <div id="tsp-result">
+        <div class="tsp-title">Tournée optimisée</div>
+        <div class="tsp-order" id="tsp-order"></div>
+        <div class="tsp-total" id="tsp-total"></div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div id="status">Prêt.</div>
+  </div>
+
+  <!-- Map -->
+  <div id="map-container">
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- Graph overlay -->
+<div id="graph-overlay">
+  <button id="graph-close">&times; Fermer</button>
+  <canvas id="graph-canvas"></canvas>
+</div>
+
+<!-- Matrix modal overlay -->
+<div id="matrix-overlay">
+  <div id="matrix-modal">
+    <div id="matrix-modal-header">
+      <div id="matrix-modal-title">
+        <span id="matrix-modal-icon">📊</span>
+        Matrice des distances
+      </div>
+      <button id="matrix-close">✕ Fermer</button>
+    </div>
+    <div id="matrix-modal-body">
+      <div id="distance-table-container">
+        <table id="distance-table"></table>
+      </div>
+    </div>
+    <div id="matrix-modal-footer">
+      <span id="matrix-legend-km"><span class="legend-dot legend-km"></span>km = kilomètres</span>
+      <span id="matrix-legend-min"><span class="legend-dot legend-min"></span>m = minutes</span>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="script.js"></script>
+<script>
+// ══════════════════════════════════════════════════
+// MOBILE BOTTOM SHEET CONTROLLER
+// ══════════════════════════════════════════════════
+(function() {
+  const isMobile = () => window.innerWidth <= 768;
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('mobile-backdrop');
+  const fab = document.getElementById('map-fab');
+  const header = document.getElementById('sidebar-header');
+  const desktopActions = document.getElementById('desktop-actions');
+
+  function openSheet() {
+    sidebar.classList.add('mobile-open');
+    sidebar.classList.remove('mobile-hidden');
+    backdrop.classList.add('active');
+    fab.style.display = 'none';
+  }
+
+  function closeSheet() {
+    sidebar.classList.remove('mobile-open');
+    backdrop.classList.remove('active');
+    fab.style.display = 'flex';
+  }
+
+  function setupMobile() {
+    if (!isMobile()) return;
+
+    // Hide desktop action buttons (quick bar replaces them on mobile)
+    desktopActions.style.display = 'none';
+
+    // FAB opens sheet
+    fab.style.display = 'flex';
+    fab.addEventListener('click', openSheet);
+
+    // Header click toggles sheet
+    header.addEventListener('click', () => {
+      if (sidebar.classList.contains('mobile-open')) {
+        closeSheet();
+      } else {
+        openSheet();
+      }
+    });
+
+    // Backdrop closes sheet
+    backdrop.addEventListener('click', closeSheet);
+
+    // Wire up quick bar buttons to main buttons
+    const pairs = [
+      ['qb-calculate', 'btn-calculate'],
+      ['qb-vrp', 'btn-vrp'],
+      ['qb-tsp', 'btn-tsp'],
+      ['qb-graph', 'btn-graph'],
+      ['qb-matrix', 'btn-show-matrix'],
+      ['qb-save', 'btn-save'],
+    ];
+    pairs.forEach(([qbId, mainId]) => {
+      const qb = document.getElementById(qbId);
+      const main = document.getElementById(mainId);
+      if (qb && main) {
+        qb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeSheet();
+          // Small delay so sheet animates closed before action fires
+          setTimeout(() => main.click(), 50);
+        });
+      }
+    });
+
+    // Touch/swipe to dismiss sheet (swipe down)
+    let startY = 0;
+    sidebar.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    sidebar.addEventListener('touchend', (e) => {
+      const dy = e.changedTouches[0].clientY - startY;
+      if (dy > 80) closeSheet(); // swipe down > 80px → close
+    }, { passive: true });
+  }
+
+  setupMobile();
+
+  // Re-apply on resize
+  window.addEventListener('resize', () => {
+    if (!isMobile()) {
+      // Reset mobile classes on desktop
+      sidebar.classList.remove('mobile-open', 'mobile-hidden');
+      backdrop.classList.remove('active');
+      if (fab) fab.style.display = 'none';
+      desktopActions.style.display = '';
+    }
+  });
+})();
+</script>
+</body>
+</html>

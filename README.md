@@ -26,5 +26,4 @@ Application de visualisation et d'optimisation d'itinéraires logistiques en Alg
 4. Utilisez les outils d'optimisation (TSP ou VRP) selon vos besoins.
 5. Exportez les résultats en LaTeX pour votre mémoire.
 
----
-*Développé dans le cadre d'un projet de recherche logistique.*
+https://islam2002-math.github.io/tassiliRoutes/
